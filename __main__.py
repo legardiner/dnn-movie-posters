@@ -3,8 +3,8 @@ import movies_genre_model
 
 min_year = 1977
 max_year = 2017
-epochs = 50
-genres = movies.list_genres(7)
+epochs = 10000
+genres = movies.list_genres(8)
 
 # select a smaller ratio (e.g. 40) for quicker training
 for ratio in [60]:

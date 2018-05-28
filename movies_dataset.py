@@ -47,7 +47,7 @@ class Movie:
         return self.poster_url.startswith('https://') \
                and 1900 <= self.year <= 2018 \
                and len(self.title) > 1 \
-               and len(self.genres) > 1
+               and len(self.genres) == 1
 
     def to_rgb_pixels(self, poster_size):
         data = open(images_folder + str(poster_size) + '/' + str(self.imdb_id) + '.jpg', "rb").read()
@@ -75,6 +75,9 @@ class Movie:
                     vector.append(int(self.has_genre(genre)))
 
             return vector
+        
+    def get_genres(self):
+        return self.genres
 
     def short_title(self) -> str:
         max_size = 20
@@ -155,7 +158,7 @@ def _add_to(array1d, array2d):
 
 def list_movies(year=None, genres=None):
     if len(parsed_movies) == 0:
-        data = pd.read_csv('data/MovieGenre.csv', encoding='ISO-8859-1')
+        data = pd.read_csv('data/MovieGenre2.csv', encoding='ISO-8859-1')
         for index, row in data.iterrows():
             movie = _parse_movie_row(row)
             if movie.is_valid():
@@ -186,9 +189,10 @@ def _parse_movie_row(row) -> Movie:
     if len(url) > 0:
         movie.poster_url = url.replace('"', '')
 
-    genre_str = str(row['Genre'])
+    genre_str = str(row['Genre2'])
     if len(genre_str) > 0:
         movie.genres = genre_str.split('|')
+
 
     return movie
 
@@ -205,7 +209,11 @@ def search_movie(imdb_id=None, title=None) -> Movie:
 def list_genres(number):
     if number == 3:
         return ['Comedy', 'Drama', 'Action']
+    if number == 4:
+        return ['Adventure', 'Documentary', 'Horror', 'Romance']
     if number == 7:
         return list_genres(3) + ['Animation', 'Romance', 'Adventure', 'Horror']
+    if number == 8:
+        return ['Action', 'Animation', 'Comedy', 'Drama', 'Family', 'Horror', 'Rom-Com', 'Sci-Fi']
     if number == 14:
         return list_genres(7) + ['Sci-Fi', 'Crime', 'Mystery', 'Thriller', 'War', 'Family', 'Western']

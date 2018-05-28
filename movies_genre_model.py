@@ -5,8 +5,15 @@ import keras
 from keras.layers import Conv2D, MaxPooling2D
 from keras.layers import Dense, Dropout, Flatten
 from keras.models import Sequential
-
+import tensorflow as tf, keras.backend.tensorflow_backend as ktf
 import movies_dataset as movies
+import keras.backend as K
+
+import plot_learning as pl
+
+def get_session(gpu_fraction=0.45):
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction, allow_growth=True)
+    return tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
 
 def get_kernel_dimensions(version, shape, divisor):
@@ -24,10 +31,17 @@ def get_kernel_dimensions(version, shape, divisor):
     if version == 3:
         return int(0.2 * image_width / divisor), int(0.2 * image_width / divisor)
 
-
+def jaccard_accuracy(y_true, y_pred):
+    preds=K.round(y_pred)
+    intersection = K.sum(K.abs(y_true * preds), axis=-1)
+    sum_ = K.sum(K.abs(y_true) + K.abs(preds), axis=-1)
+    jac = (intersection) / (sum_ - intersection)
+    return (jac)
+    
 def build(version, min_year, max_year, genres, ratio, epochs,
           x_train=None, y_train=None, x_validation=None, y_validation=None):
     # log
+    ktf.set_session(get_session())
     print()
     print('version:', version)
     print('min_year:', min_year)
@@ -69,16 +83,18 @@ def build(version, min_year, max_year, genres, ratio, epochs,
         Dropout(0.25),
 
         Flatten(),
-        Dense(512, activation='relu'),
+        Dense(64, activation='relu'),
         Dropout(0.5),
-        Dense(num_classes, activation='sigmoid')
+        Dense(32, activation='relu'),
+        Dropout(0.5),
+        Dense(num_classes, activation='softmax')
     ])
 
     opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
     model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
     print(model.summary())
-
-    model.fit(x_train, y_train, batch_size=32, epochs=epochs, validation_data=(x_validation, y_validation))
+    plot = pl.PlotLearning()
+    model.fit(x_train, y_train, batch_size=32, epochs=epochs, validation_data=(x_validation, y_validation), callbacks = [plot])
 
     # create dir if none
     save_dir = os.path.join(os.getcwd(), 'saved_models')
