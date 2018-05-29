@@ -3,11 +3,13 @@ import time
 
 import keras
 from keras.layers import Conv2D, MaxPooling2D
-from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Dense, Dropout, Flatten, Merge
 from keras.models import Sequential
 import tensorflow as tf, keras.backend.tensorflow_backend as ktf
 import movies_dataset as movies
 import keras.backend as K
+from keras import regularizers
+
 
 import plot_learning as pl
 
@@ -38,8 +40,8 @@ def jaccard_accuracy(y_true, y_pred):
     jac = (intersection) / (sum_ - intersection)
     return (jac)
     
-def build(version, min_year, max_year, genres, ratio, epochs,
-          x_train=None, y_train=None, x_validation=None, y_validation=None):
+def build(version, min_year, max_year, genres, ratings, ratio, epochs,
+          x_train=None, x2_train=None, y_train=None, x_validation=None, x2_validation=None, y_validation=None):
     # log
     ktf.set_session(get_session())
     print()
@@ -71,7 +73,7 @@ def build(version, min_year, max_year, genres, ratio, epochs,
     print('kernel_dimensions1:', kernel_dimensions1)
     print('kernel_dimensions2:', kernel_dimensions2)
 
-    model = Sequential([
+    branch1 = Sequential([
         Conv2D(32, kernel_dimensions1, padding='same', input_shape=x_train.shape[1:], activation='relu'),
         Conv2D(32, kernel_dimensions1, activation='relu'),
         MaxPooling2D(pool_size=(2, 2)),
@@ -81,20 +83,32 @@ def build(version, min_year, max_year, genres, ratio, epochs,
         Conv2D(64, kernel_dimensions2, activation='relu'),
         MaxPooling2D(pool_size=(2, 2)),
         Dropout(0.25),
+        
+        Conv2D(128, kernel_dimensions2, padding='same', activation='relu'),
+        Conv2D(128, kernel_dimensions2, activation='relu'),
+        MaxPooling2D(pool_size=(2, 2)),
+        Dropout(0.25),
 
         Flatten(),
-        Dense(64, activation='relu'),
+        Dense(128, activation='relu'),
         Dropout(0.5),
-        Dense(32, activation='relu'),
-        Dropout(0.5),
-        Dense(num_classes, activation='softmax')
-    ])
 
-    opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+    ])
+    
+    branch2= Sequential([
+            Dense(64, input_shape=x2_train.shape[1:], activation='relu')])
+    
+    model = Sequential([
+        Merge([branch1, branch2], mode='concat'),
+        Dense(128, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        Dropout(0.5),
+        Dense(num_classes, activation='softmax')])
+
+    opt = keras.optimizers.Adam(lr=0.001, decay=1e-6)
     model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
     print(model.summary())
     plot = pl.PlotLearning()
-    model.fit(x_train, y_train, batch_size=32, epochs=epochs, validation_data=(x_validation, y_validation), callbacks = [plot])
+    model.fit([x_train, x2_train], y_train, batch_size=32, epochs=epochs, validation_data=([x_validation, x2_validation], y_validation), callbacks = [plot])
 
     # create dir if none
     save_dir = os.path.join(os.getcwd(), 'saved_models')
